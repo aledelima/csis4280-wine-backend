@@ -16,8 +16,15 @@ This is a Flask-based application that connects to a MongoDB database. The app i
     ```python
     pip install Flask pymongo python-dotenv bson
 
-3. **Postman Colleciton**
+3. **Mongodb User and Password**
+
+    As those information are sensitive and should not be pushed to github, they are introduced as environment variables. Thus a ".env" file is necessary to be put into the root of the project.
+
+    Content must be
+    MONGO_URI="mongodb+srv://<db_username>:<db_password>@<url>/"
+
+4. **Postman Colleciton**
 
     Notice that the Postman collection uses a variable namede based url. It was successfuly validated locally as base_url=http://localhost:8888/v1/api
-    
+
     You can change it by editing the collection and then selecting the tab VARIABLES
