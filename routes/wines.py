@@ -5,23 +5,70 @@ from pymongo.errors import PyMongoError
 wines_bp = Blueprint('wines', __name__)
 
 def init_wine_routes(wines_collection):
-    # Get all wines with pagination
     @wines_bp.route('/wines', methods=['GET'])
     def get_all_wines():
-        # Get page and limit query parameters with defaults
+        # Initialize an empty filter dictionary
+        filter_criteria = {}
+
+        # Partial name filter
+        name_query = request.args.get('name')
+        if name_query:
+            filter_criteria['name'] = {"$regex": name_query, "$options": "i"}  # Case-insensitive regex
+
+        # Type filter
+        wine_type = request.args.get('type')
+        if wine_type:
+            filter_criteria['type'] = {"$regex": wine_type, "$options": "i"}  # Case-insensitive regex
+
+        # Grape filter (match any entry in the "grapes" array)
+        grape = request.args.get('grape')
+        if grape:
+            filter_criteria['grapes'] = {"$elemMatch": {"$regex": grape, "$options": "i"}}  # Case-insensitive regex
+
+        # Food pairing filter (match any entry in the "food_pair" array)
+        food_pair = request.args.get('food_pair')
+        if food_pair:
+            filter_criteria['food_pair'] = {"$elemMatch": {"$regex": food_pair, "$options": "i"}}  # Case-insensitive regex
+
+        # Harvest year range filter
+        min_harvest = request.args.get('min_harvest')
+        max_harvest = request.args.get('max_harvest')
+        if min_harvest or max_harvest:
+            filter_criteria['harvest'] = {}
+            if min_harvest:
+                filter_criteria['harvest']['$gte'] = int(min_harvest)  # Greater than or equal to min_harvest
+            if max_harvest:
+                filter_criteria['harvest']['$lte'] = int(max_harvest)  # Less than or equal to max_harvest
+
+        # Country filter
+        country = request.args.get('country')
+        if country:
+            filter_criteria['country'] = {"$regex": country, "$options": "i"}  # Case-insensitive regex
+
+        # Producer filter
+        producer = request.args.get('producer')
+        if producer:
+            filter_criteria['producer'] = {"$regex": producer, "$options": "i"}  # Case-insensitive regex
+
+        # Discount threshold filter
+        discount_threshold = request.args.get('discount')
+        if discount_threshold:
+            filter_criteria['discount'] = {"$gte": float(discount_threshold)}  # Greater than or equal to threshold
+
+        # Pagination parameters
         page = int(request.args.get('page', 1))  # Default to page 1
         limit = int(request.args.get('limit', 10))  # Default to 10 items per page
         skip = (page - 1) * limit
 
-        # Query MongoDB with pagination
-        wines = list(wines_collection.find().skip(skip).limit(limit))
+        # Query MongoDB with the constructed filter and apply pagination
+        wines = list(wines_collection.find(filter_criteria).skip(skip).limit(limit))
 
         # Convert ObjectId to string for JSON serialization
         for wine in wines:
             wine['_id'] = str(wine['_id'])
 
-        # Get the total count of wines
-        total_count = wines_collection.count_documents({})
+        # Get the total count of wines matching the filter
+        total_count = wines_collection.count_documents(filter_criteria)
 
         # Prepare paginated response
         response = {
@@ -31,8 +78,7 @@ def init_wine_routes(wines_collection):
             "total_pages": (total_count + limit - 1) // limit,
             "wines": wines
         }
-        # return jsonify(response)
-        return wines
+        return jsonify(response)
 
     # Get a single wine by ID
     @wines_bp.route('/wines/<id>', methods=['GET'])
@@ -119,8 +165,7 @@ def init_wine_routes(wines_collection):
         for wine in wines:
             wine['_id'] = str(wine['_id'])
         return jsonify(wines)
-        
-    
+
     # Remove all wines and create initial list
     @wines_bp.route('/wines/all', methods=['POST'])
     def create_initial_wines():
@@ -165,4 +210,3 @@ def init_wine_routes(wines_collection):
         if result.deleted_count > 0:
             return jsonify({"message": "All wines deleted successfully"}), 200
         return jsonify({"error": "No wines found to delete"}), 404
-

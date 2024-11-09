@@ -23,18 +23,206 @@
 			"response": []
 		},
 		{
+			"name": "ListAll Discounted",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?discount=0.15",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "discount",
+							"value": "0.15"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListAll By Country",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?country=italy",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "country",
+							"value": "italy"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListAll By Name",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?name=h",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "name",
+							"value": "h"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListAll By Harvest Range",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?min_harvest=2021&max_harvest=2023",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "min_harvest",
+							"value": "2021"
+						},
+						{
+							"key": "max_harvest",
+							"value": "2023"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListAll By Grape",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?grape=Sémillon",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "grape",
+							"value": "Sémillon"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListAll By Producer",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?producer=co",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "producer",
+							"value": "co"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListAll By Type",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?type=red",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "type",
+							"value": "red"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ListAll By Food Pair",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/wines?food_pair=seafood",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"wines"
+					],
+					"query": [
+						{
+							"key": "food_pair",
+							"value": "seafood"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "FindById",
 			"request": {
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_url}}/wines/672d0b90d5f9f0aaf52f534a",
+					"raw": "{{base_url}}/wines/672edcf7ffbd5bdeb19c2456",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
 						"wines",
-						"672d0b90d5f9f0aaf52f534a"
+						"672edcf7ffbd5bdeb19c2456"
 					]
 				}
 			},
@@ -53,54 +241,6 @@
 					"path": [
 						"wines",
 						"672d638ef46e255ea2012f8a"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "search",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/wines/search?q=wine",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"wines",
-						"search"
-					],
-					"query": [
-						{
-							"key": "q",
-							"value": "wine"
-						}
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "FilterByType",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/wines/filter?type=Red",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"wines",
-						"filter"
-					],
-					"query": [
-						{
-							"key": "type",
-							"value": "Red"
-						}
 					]
 				}
 			},
