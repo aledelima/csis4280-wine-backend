@@ -35,6 +35,11 @@ This is a Flask-based application that connects to a MongoDB database. The app i
     git add .
     git commit -m "message"
     git push origin dev
+    #Use Personal Access Token (PAT):
+      # GitHub\Developer settings\Personal access tokens\Tokens (classic)
+      # Generate new token\Generate new token (classic)
+      # Select repo\Generate token
+      # Authenticate using user name and the created token
     
     pull the repository to Cloud9 environment:
     git status
