@@ -19,8 +19,8 @@ app.register_blueprint(wines_bp, url_prefix=app.config["BASE_URL"])
 # Basic route to verify app is running
 @app.route('/')
 def index():
-    return jsonify({"message": "Welcome to the Wine Warehouse API"})
+    return jsonify({"message": "Welcome to the Wine Warehouse API"}), 200
 
-# Start the Flask app
+# Start the Flask app on all available IPs (host 0.0.0.0) on port 8888
 if __name__ == '__main__':
-    app.run(debug=True, port=8888)
+    app.run(host='0.0.0.0', debug=True, port=8888)
