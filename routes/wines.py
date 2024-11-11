@@ -210,3 +210,28 @@ def init_wine_routes(wines_collection):
         if result.deleted_count > 0:
             return jsonify({"message": "All wines deleted successfully"}), 200
         return jsonify({"error": "No wines found to delete"}), 404
+    
+    @wines_bp.route('/wines/bulk', methods=['POST'])
+    def get_wines_by_ids():
+        try:
+            # Retrieve the list of wine IDs from the request
+            wine_ids = request.json.get("wine_ids", [])
+            if not wine_ids:
+                return jsonify({"error": "No wine IDs provided"}), 400
+
+            # Convert string IDs to ObjectId for MongoDB query
+            object_ids = [ObjectId(wine_id) for wine_id in wine_ids]
+
+            # Query MongoDB for wines with the provided IDs
+            wines = list(wines_collection.find({"_id": {"$in": object_ids}}))
+
+            # Convert ObjectId to string for JSON serialization
+            for wine in wines:
+                wine['_id'] = str(wine['_id'])
+
+            return jsonify(wines), 200
+
+        except PyMongoError as e:
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Unexpected error: {str(e)}"}), 500

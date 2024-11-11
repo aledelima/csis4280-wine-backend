@@ -1,7 +1,8 @@
 from flask import Flask, jsonify
 from pymongo import MongoClient
 from config import Config
-from routes.wines import wines_bp, init_wine_routes  # Import the blueprint and init function
+from routes.wines import wines_bp, init_wine_routes
+from routes.purchases import purchases_bp, init_purchase_routes 
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -11,10 +12,13 @@ app.config.from_object(Config)
 client = MongoClient(app.config["MONGO_URI"])
 db = client['wine_warehouse']  # Replace 'wine_warehouse' with your actual database name
 wines_collection = db['wines']  # Collection where wine data is stored
+purchases_collection = db['purchases'] # Collection for purchase records
 
 # Initialize wine routes with the wines_collection instance
 init_wine_routes(wines_collection)
+init_purchase_routes(wines_collection, purchases_collection)
 app.register_blueprint(wines_bp, url_prefix=app.config["BASE_URL"])
+app.register_blueprint(purchases_bp, url_prefix=app.config["BASE_URL"])
 
 # Basic route to verify app is running
 @app.route('/')
