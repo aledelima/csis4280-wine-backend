@@ -15,10 +15,10 @@ def init_wine_routes(wines_collection):
         if name_query:
             filter_criteria['name'] = {"$regex": name_query, "$options": "i"}  # Case-insensitive regex
 
-        # Type filter
-        wine_type = request.args.get('type')
-        if wine_type:
-            filter_criteria['type'] = {"$regex": wine_type, "$options": "i"}  # Case-insensitive regex
+        wine_types = request.args.get('type')
+        if wine_types:
+            wine_types_list = wine_types.split(",")  # Split the types by comma to create a list
+            filter_criteria['$or'] = [{"type": {"$regex": f"^{wine_type.strip()}$", "$options": "i"}} for wine_type in wine_types_list]
 
         # Grape filter (match any entry in the "grapes" array)
         grape = request.args.get('grape')

@@ -173,7 +173,7 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/wines?type=red",
+							"raw": "{{base_url}}/wines?type=red,white",
 							"host": [
 								"{{base_url}}"
 							],
@@ -183,7 +183,7 @@
 							"query": [
 								{
 									"key": "type",
-									"value": "red"
+									"value": "red,white"
 								}
 							]
 						}
