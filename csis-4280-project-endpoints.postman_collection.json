@@ -26,6 +26,125 @@
 					"response": []
 				},
 				{
+					"name": "ListAll Sort Price Asc",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wines?sort_price_order=asc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wines"
+							],
+							"query": [
+								{
+									"key": "sort_price_order",
+									"value": "asc"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ListAll Sort Price Desc",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wines?sort_price_order=desc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wines"
+							],
+							"query": [
+								{
+									"key": "sort_price_order",
+									"value": "desc"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ListAll By Min Price",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wines?min_price=30",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wines"
+							],
+							"query": [
+								{
+									"key": "min_price",
+									"value": "30"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ListAll By Max Price",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wines?max_price=30",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wines"
+							],
+							"query": [
+								{
+									"key": "max_price",
+									"value": "30"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "ListAll By Price Range",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/wines?min_price=25&max_price=35",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"wines"
+							],
+							"query": [
+								{
+									"key": "min_price",
+									"value": "25"
+								},
+								{
+									"key": "max_price",
+									"value": "35"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "ListAll Discounted",
 					"request": {
 						"method": "GET",

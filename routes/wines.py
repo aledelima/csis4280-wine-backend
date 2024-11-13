@@ -15,17 +15,18 @@ def init_wine_routes(wines_collection):
         if name_query:
             filter_criteria['name'] = {"$regex": name_query, "$options": "i"}  # Case-insensitive regex
 
+        # Wine type filter
         wine_types = request.args.get('type')
         if wine_types:
-            wine_types_list = wine_types.split(",")  # Split the types by comma to create a list
+            wine_types_list = wine_types.split(",")
             filter_criteria['$or'] = [{"type": {"$regex": f"^{wine_type.strip()}$", "$options": "i"}} for wine_type in wine_types_list]
 
-        # Grape filter (match any entry in the "grapes" array)
+        # Grape filter
         grape = request.args.get('grape')
         if grape:
             filter_criteria['grapes'] = {"$elemMatch": {"$regex": grape, "$options": "i"}}  # Case-insensitive regex
 
-        # Food pairing filter (match any entry in the "food_pair" array)
+        # Food pairing filter
         food_pair = request.args.get('food_pair')
         if food_pair:
             filter_criteria['food_pair'] = {"$elemMatch": {"$regex": food_pair, "$options": "i"}}  # Case-insensitive regex
@@ -36,32 +37,51 @@ def init_wine_routes(wines_collection):
         if min_harvest or max_harvest:
             filter_criteria['harvest'] = {}
             if min_harvest:
-                filter_criteria['harvest']['$gte'] = int(min_harvest)  # Greater than or equal to min_harvest
+                filter_criteria['harvest']['$gte'] = int(min_harvest)
             if max_harvest:
-                filter_criteria['harvest']['$lte'] = int(max_harvest)  # Less than or equal to max_harvest
+                filter_criteria['harvest']['$lte'] = int(max_harvest)
 
         # Country filter
         country = request.args.get('country')
         if country:
-            filter_criteria['country'] = {"$regex": country, "$options": "i"}  # Case-insensitive regex
+            filter_criteria['country'] = {"$regex": country, "$options": "i"}
 
         # Producer filter
         producer = request.args.get('producer')
         if producer:
-            filter_criteria['producer'] = {"$regex": producer, "$options": "i"}  # Case-insensitive regex
+            filter_criteria['producer'] = {"$regex": producer, "$options": "i"}
 
         # Discount threshold filter
         discount_threshold = request.args.get('discount')
         if discount_threshold:
-            filter_criteria['discount'] = {"$gte": float(discount_threshold)}  # Greater than or equal to threshold
+            filter_criteria['discount'] = {"$gte": float(discount_threshold)}
+
+        # Price range filter
+        min_price = request.args.get('min_price')
+        max_price = request.args.get('max_price')
+        if min_price or max_price:
+            filter_criteria['price'] = {}
+            if min_price:
+                filter_criteria['price']['$gte'] = float(min_price)
+            if max_price:
+                filter_criteria['price']['$lte'] = float(max_price)
+
+        # Sorting by price
+        sort_order = request.args.get('sort_price_order', 'asc')
+        sort_direction = 1 if sort_order == 'asc' else -1
 
         # Pagination parameters
-        page = int(request.args.get('page', 1))  # Default to page 1
-        limit = int(request.args.get('limit', 10))  # Default to 10 items per page
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
         skip = (page - 1) * limit
 
-        # Query MongoDB with the constructed filter and apply pagination
-        wines = list(wines_collection.find(filter_criteria).skip(skip).limit(limit))
+        # Query MongoDB with the constructed filter, apply sorting and pagination
+        wines = list(
+            wines_collection.find(filter_criteria)
+            .sort("price", sort_direction)  # Apply sorting by price
+            .skip(skip)
+            .limit(limit)
+        )
 
         # Convert ObjectId to string for JSON serialization
         for wine in wines:
