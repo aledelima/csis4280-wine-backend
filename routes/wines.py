@@ -1,26 +1,94 @@
 from flask import Blueprint, jsonify, request
 from bson.objectid import ObjectId
+from pymongo.errors import PyMongoError
 
 wines_bp = Blueprint('wines', __name__)
 
 def init_wine_routes(wines_collection):
-    # Get all wines with pagination
     @wines_bp.route('/wines', methods=['GET'])
     def get_all_wines():
-        # Get page and limit query parameters with defaults
-        page = int(request.args.get('page', 1))  # Default to page 1
-        limit = int(request.args.get('limit', 10))  # Default to 10 items per page
+        # Initialize an empty filter dictionary
+        filter_criteria = {}
+
+        # Partial name filter
+        name_query = request.args.get('name')
+        if name_query:
+            filter_criteria['name'] = {"$regex": name_query, "$options": "i"}  # Case-insensitive regex
+
+        # Wine type filter
+        wine_types = request.args.get('type')
+        if wine_types:
+            wine_types_list = wine_types.split(",")
+            filter_criteria['$or'] = [{"type": {"$regex": f"^{wine_type.strip()}$", "$options": "i"}} for wine_type in wine_types_list]
+
+        # Grape filter
+        grape = request.args.get('grape')
+        if grape:
+            filter_criteria['grapes'] = {"$elemMatch": {"$regex": grape, "$options": "i"}}  # Case-insensitive regex
+
+        # Food pairing filter
+        food_pair = request.args.get('food_pair')
+        if food_pair:
+            filter_criteria['food_pair'] = {"$elemMatch": {"$regex": food_pair, "$options": "i"}}  # Case-insensitive regex
+
+        # Harvest year range filter
+        min_harvest = request.args.get('min_harvest')
+        max_harvest = request.args.get('max_harvest')
+        if min_harvest or max_harvest:
+            filter_criteria['harvest'] = {}
+            if min_harvest:
+                filter_criteria['harvest']['$gte'] = int(min_harvest)
+            if max_harvest:
+                filter_criteria['harvest']['$lte'] = int(max_harvest)
+
+        # Country filter
+        country = request.args.get('country')
+        if country:
+            filter_criteria['country'] = {"$regex": country, "$options": "i"}
+
+        # Producer filter
+        producer = request.args.get('producer')
+        if producer:
+            filter_criteria['producer'] = {"$regex": producer, "$options": "i"}
+
+        # Discount threshold filter
+        discount_threshold = request.args.get('discount')
+        if discount_threshold:
+            filter_criteria['discount'] = {"$gte": float(discount_threshold)}
+
+        # Price range filter
+        min_price = request.args.get('min_price')
+        max_price = request.args.get('max_price')
+        if min_price or max_price:
+            filter_criteria['price'] = {}
+            if min_price:
+                filter_criteria['price']['$gte'] = float(min_price)
+            if max_price:
+                filter_criteria['price']['$lte'] = float(max_price)
+
+        # Sorting by price
+        sort_order = request.args.get('sort_price_order', 'asc')
+        sort_direction = 1 if sort_order == 'asc' else -1
+
+        # Pagination parameters
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
         skip = (page - 1) * limit
 
-        # Query MongoDB with pagination
-        wines = list(wines_collection.find().skip(skip).limit(limit))
+        # Query MongoDB with the constructed filter, apply sorting and pagination
+        wines = list(
+            wines_collection.find(filter_criteria)
+            .sort("price", sort_direction)  # Apply sorting by price
+            .skip(skip)
+            .limit(limit)
+        )
 
         # Convert ObjectId to string for JSON serialization
         for wine in wines:
             wine['_id'] = str(wine['_id'])
 
-        # Get the total count of wines
-        total_count = wines_collection.count_documents({})
+        # Get the total count of wines matching the filter
+        total_count = wines_collection.count_documents(filter_criteria)
 
         # Prepare paginated response
         response = {
@@ -46,14 +114,20 @@ def init_wine_routes(wines_collection):
     def create_wine():
         data = request.json
         new_wine = {
+            "image_path": data.get("image_path"),
             "name": data.get("name"),
-            "grape": data.get("grape"),
             "producer": data.get("producer"),
-            "description": data.get("description"),
-            "country": data.get("country"),
             "type": data.get("type"),
+            "grapes": data.get("grapes"),
+            "country": data.get("country"),
+            "harvest": data.get("harvest"),
+            "description": data.get("description"),
             "price": data.get("price"),
-            "image_url": data.get("image_url")
+            "discount": data.get("discount"),
+            "taste_characteristics": data.get("taste_characteristics"),
+            "rate": data.get("rate"),
+            "food_pair": data.get("food_pair"),
+            "reviews": data.get("reviews")
         }
         result = wines_collection.insert_one(new_wine)
         new_wine['_id'] = str(result.inserted_id)
@@ -111,3 +185,73 @@ def init_wine_routes(wines_collection):
         for wine in wines:
             wine['_id'] = str(wine['_id'])
         return jsonify(wines)
+
+    # Remove all wines and create initial list
+    @wines_bp.route('/wines/all', methods=['POST'])
+    def create_initial_wines():
+        
+        #function to delete all existing wines on wine_warehouse
+        delete_all_wines()
+        
+        data_list = request.json
+        if not isinstance(data_list, list):
+            return jsonify({"error": "Input data must be a list"}), 400
+        wine_list = []
+        for data in data_list:
+            new_wine = {
+                "image_path": data.get("image_path"),
+                "name": data.get("name"),
+                "producer": data.get("producer"),
+                "type": data.get("type"),
+                "grapes": data.get("grapes"),
+                "country": data.get("country"),
+                "harvest": data.get("harvest"),
+                "description": data.get("description"),
+                "price": data.get("price"),
+                "discount": data.get("discount"),
+                "taste_characteristics": data.get("taste_characteristics"),
+                "rate": data.get("rate"),
+                "food_pair": data.get("food_pair"),
+                "reviews": data.get("reviews")
+            }
+            wine_list.append(new_wine)
+        try:
+            result = wines_collection.insert_many(wine_list)
+            if result.inserted_ids:
+                return jsonify({"message": "List of wines created successfully"}), 201
+        except PyMongoError as e:
+            return jsonify({"error": f"Failed to create list of wines: {str(e)}"}), 500
+        return jsonify({"error": "Unknown error occurred"}), 500
+        
+    # Delete all wines
+    @wines_bp.route('/wines', methods=['DELETE'])
+    def delete_all_wines():
+        result = wines_collection.delete_many({})
+        if result.deleted_count > 0:
+            return jsonify({"message": "All wines deleted successfully"}), 200
+        return jsonify({"error": "No wines found to delete"}), 404
+    
+    @wines_bp.route('/wines/bulk', methods=['POST'])
+    def get_wines_by_ids():
+        try:
+            # Retrieve the list of wine IDs from the request
+            wine_ids = request.json.get("wine_ids", [])
+            if not wine_ids:
+                return jsonify({"error": "No wine IDs provided"}), 400
+
+            # Convert string IDs to ObjectId for MongoDB query
+            object_ids = [ObjectId(wine_id) for wine_id in wine_ids]
+
+            # Query MongoDB for wines with the provided IDs
+            wines = list(wines_collection.find({"_id": {"$in": object_ids}}))
+
+            # Convert ObjectId to string for JSON serialization
+            for wine in wines:
+                wine['_id'] = str(wine['_id'])
+
+            return jsonify(wines), 200
+
+        except PyMongoError as e:
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
