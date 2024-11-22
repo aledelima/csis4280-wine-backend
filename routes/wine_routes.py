@@ -1,12 +1,14 @@
 from flask import Blueprint, jsonify, request
 from bson.objectid import ObjectId
 from pymongo.errors import PyMongoError
+from .stock_manager import get_total_stock
 
 wines_bp = Blueprint('wines', __name__)
 
-def init_wine_routes(wines_collection):
+def init_wine_routes(wines_collection, warehouses_collection):
+    
     @wines_bp.route('/wines', methods=['GET'])
-    def get_all_wines():
+    def get_wines():
         # Initialize an empty filter dictionary
         filter_criteria = {}
 
@@ -35,11 +37,11 @@ def init_wine_routes(wines_collection):
         min_harvest = request.args.get('min_harvest')
         max_harvest = request.args.get('max_harvest')
         if min_harvest or max_harvest:
-            filter_criteria['harvest'] = {}
+            filter_criteria['harvest_year'] = {}
             if min_harvest:
-                filter_criteria['harvest']['$gte'] = int(min_harvest)
+                filter_criteria['harvest_year']['$gte'] = int(min_harvest)
             if max_harvest:
-                filter_criteria['harvest']['$lte'] = int(max_harvest)
+                filter_criteria['harvest_year']['$lte'] = int(max_harvest)
 
         # Country filter
         country = request.args.get('country')
@@ -60,11 +62,11 @@ def init_wine_routes(wines_collection):
         min_price = request.args.get('min_price')
         max_price = request.args.get('max_price')
         if min_price or max_price:
-            filter_criteria['price'] = {}
+            filter_criteria['sale_price'] = {}
             if min_price:
-                filter_criteria['price']['$gte'] = float(min_price)
+                filter_criteria['sale_price']['$gte'] = float(min_price)
             if max_price:
-                filter_criteria['price']['$lte'] = float(max_price)
+                filter_criteria['sale_price']['$lte'] = float(max_price)
 
         # Sorting by price
         sort_order = request.args.get('sort_price_order', 'asc')
@@ -78,14 +80,16 @@ def init_wine_routes(wines_collection):
         # Query MongoDB with the constructed filter, apply sorting and pagination
         wines = list(
             wines_collection.find(filter_criteria)
-            .sort("price", sort_direction)  # Apply sorting by price
+            .sort("sale_price", sort_direction)  # Apply sorting by price
             .skip(skip)
             .limit(limit)
         )
 
         # Convert ObjectId to string for JSON serialization
+        # set stock in each wine
         for wine in wines:
             wine['_id'] = str(wine['_id'])
+            wine['stock'] = get_total_stock(warehouses_collection, wine['_id'])
 
         # Get the total count of wines matching the filter
         total_count = wines_collection.count_documents(filter_criteria)
@@ -106,33 +110,55 @@ def init_wine_routes(wines_collection):
         wine = wines_collection.find_one({"_id": ObjectId(id)})
         if wine:
             wine['_id'] = str(wine['_id'])
+            wine['stock'] = get_total_stock(warehouses_collection, wine['_id']) #load stock from warehouse
             return jsonify(wine)
         return jsonify({"error": "Wine not found"}), 404
 
-    # Create a new wine
+    # Create a new wine.
     @wines_bp.route('/wines', methods=['POST'])
     def create_wine():
         data = request.json
-        new_wine = {
-            "image_path": data.get("image_path"),
-            "name": data.get("name"),
-            "producer": data.get("producer"),
-            "type": data.get("type"),
-            "grapes": data.get("grapes"),
-            "country": data.get("country"),
-            "harvest": data.get("harvest"),
-            "description": data.get("description"),
-            "price": data.get("price"),
-            "discount": data.get("discount"),
-            "stock": data.get("stock"),
-            "taste_characteristics": data.get("taste_characteristics"),
-            "rate": data.get("rate"),
-            "food_pair": data.get("food_pair"),
-            "reviews": data.get("reviews")
+        
+        # Function to create new wine
+        def create_wine(data):
+            new_wine = {
+                "image_path": data.get("image_path"),
+                "name": data.get("name"),
+                "producer": data.get("producer"),
+                "country": data.get("country"),
+                "harvest_year": data.get("harvest_year"),
+                "type": data.get("type"),
+                "rate": data.get("rate"),
+                "description": data.get("description"),
+                "reviews": data.get("reviews"),
+                "grapes": data.get("grapes"),
+                "taste_characteristics": data.get("taste_characteristics"),
+                "food_pair": data.get("food_pair"),
+                "sale_price": data.get("sale_price"),
+                "discount": data.get("discount"),
+                "stock": data.get("stock")
+            }
+            try:
+                result = wines_collection.insert_one(new_wine)
+                new_wine["_id"] = str(result.inserted_id) #Convert ObjectId to string
+                return new_wine
+            except Exception as e:
+                return None, str(e)
+        
+        wine = create_wine(data)
+        if not wine:
+            return jsonify({
+                "message": "Error creating wine",
+                "response_status": False
+            }), 500
+        
+        # Prepare response with wine data
+        response = {
+            "response_id": wine["_id"],
+            "message": "Wine registered successfully",
+            "response_status": True
         }
-        result = wines_collection.insert_one(new_wine)
-        new_wine['_id'] = str(result.inserted_id)
-        return jsonify(new_wine), 201
+        return jsonify(response), 201
 
     # Update an existing wine
     @wines_bp.route('/wines/<id>', methods=['PATCH'])
@@ -164,6 +190,7 @@ def init_wine_routes(wines_collection):
         wines = list(wines_collection.find({"name": {"$regex": query, "$options": "i"}}).skip(skip).limit(limit))
         for wine in wines:
             wine['_id'] = str(wine['_id'])
+            wine['stock'] = get_total_stock(warehouses_collection, wine['_id'])
 
         # Get total count of wines matching the search query
         total_count = wines_collection.count_documents({"name": {"$regex": query, "$options": "i"}})
@@ -185,6 +212,7 @@ def init_wine_routes(wines_collection):
         wines = list(wines_collection.find({"type": wine_type}))
         for wine in wines:
             wine['_id'] = str(wine['_id'])
+            wine['stock'] = get_total_stock(warehouses_collection, wine['_id'])
         return jsonify(wines)
 
     # Remove all wines and create initial list
@@ -203,18 +231,18 @@ def init_wine_routes(wines_collection):
                 "image_path": data.get("image_path"),
                 "name": data.get("name"),
                 "producer": data.get("producer"),
-                "type": data.get("type"),
-                "grapes": data.get("grapes"),
                 "country": data.get("country"),
-                "harvest": data.get("harvest"),
-                "description": data.get("description"),
-                "price": data.get("price"),
-                "discount": data.get("discount"),
-                "stock": data.get("stock"),
-                "taste_characteristics": data.get("taste_characteristics"),
+                "harvest_year": data.get("harvest_year"),
+                "type": data.get("type"),
                 "rate": data.get("rate"),
+                "description": data.get("description"),
+                "reviews": data.get("reviews"),
+                "grapes": data.get("grapes"),
+                "taste_characteristics": data.get("taste_characteristics"),
                 "food_pair": data.get("food_pair"),
-                "reviews": data.get("reviews")
+                "sale_price": data.get("sale_price"),
+                "discount": data.get("discount"),
+                "stock": data.get("stock")
             }
             wine_list.append(new_wine)
         try:
@@ -233,6 +261,7 @@ def init_wine_routes(wines_collection):
             return jsonify({"message": "All wines deleted successfully"}), 200
         return jsonify({"error": "No wines found to delete"}), 404
     
+    #get wines by ids
     @wines_bp.route('/wines/bulk', methods=['POST'])
     def get_wines_by_ids():
         try:
@@ -250,6 +279,7 @@ def init_wine_routes(wines_collection):
             # Convert ObjectId to string for JSON serialization
             for wine in wines:
                 wine['_id'] = str(wine['_id'])
+                wine['stock'] = get_total_stock(warehouses_collection, wine['_id'])
 
             return jsonify(wines), 200
 
@@ -257,3 +287,4 @@ def init_wine_routes(wines_collection):
             return jsonify({"error": f"Database error: {str(e)}"}), 500
         except Exception as e:
             return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+            
