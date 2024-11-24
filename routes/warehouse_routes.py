@@ -28,12 +28,6 @@ def init_warehouse_routes(warehouses_collection):
         wine_id = first_wine.get('wine_id')
         stock_to_add = int(first_wine.get('stock'))
         
-        print(aisle)
-        print(shelf)
-        print(wine_id)
-        print(stock_to_add)
-        print(location_id)
-        
         #function to update stock in the required warehouse location
         result = update_wine_stock(
                     warehouses_collection,

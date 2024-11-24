@@ -17,11 +17,9 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
         account_id = data.get("account_id")
     
         items = data.get("items", [])
-    
-        # Retrieve shipping address fields
-        address_fields = ["address", "city", "province", "postal_code", "country"]
-        shipping_address = {field: data.get(field) for field in address_fields}
-    
+        
+        shipping_address = data.get("shipping_address")
+
         total_price = 0
         insufficient_stock_items = []
         processed_items = []
@@ -39,8 +37,8 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
             if not sale_item[0]["success"]:
                 insufficient_stock_items.append({
                     "wine_id": str(wine_id),
-                    "available_stock": sale_item[0].get("stock", 0),
-                    "requested_quantity": quantity_requested
+                    "available_stock": int(sale_item[0].get("stock", 0)),
+                    "requested_quantity": int(quantity_requested)
                 })
             else:
                 wine = wines_collection.find_one({"_id": ObjectId(wine_id)})
@@ -59,6 +57,11 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
                     "item_total": item_total,
                     "stock_location": sale_item[1:]
                 })
+                
+        response = {
+            "invoice": None,
+            "sale_refused": insufficient_stock_items
+        }
     
         # Issue new invoice
         if processed_items:
@@ -66,17 +69,13 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
                 "account_id": ObjectId(account_id),
                 "items": processed_items,
                 "total_price": round(total_price, 2),
-                "sales_date": datetime.utcnow(),
+                "sales_date": str(datetime.utcnow()),
                 "shipping_address": shipping_address
             }
             result = sales_collection.insert_one(new_invoice)
             new_invoice["_id"] = str(result.inserted_id)
             new_invoice["account_id"] = str(new_invoice["account_id"])
     
-            response = {"invoice": new_invoice}
-            if insufficient_stock_items:
-                response["sale_refused"] = insufficient_stock_items
-            return jsonify(response), 201
-    
-        # No items could be processed
-        return jsonify({"sale_refused": insufficient_stock_items}), 200
+            response["invoice"] = new_invoice
+
+        return jsonify(response), 200
