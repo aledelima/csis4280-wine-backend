@@ -161,14 +161,37 @@ def init_wine_routes(wines_collection, warehouses_collection):
         return jsonify(response), 201
 
     # Update an existing wine
+    # Update an existing wine
     @wines_bp.route('/wines/<id>', methods=['PATCH'])
     def update_wine(id):
-        data = request.json
-        updated_data = {key: value for key, value in data.items() if value is not None}
-        result = wines_collection.update_one({"_id": ObjectId(id)}, {"$set": updated_data})
-        if result.modified_count:
-            return jsonify({"message": "Wine updated successfully"})
-        return jsonify({"error": "Wine not found or no changes made"}), 404
+        try:
+            # Parse the incoming JSON data
+            data = request.json
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
+        
+            # Remove `_id` if it exists, as MongoDB does not allow updates to `_id`
+            if '_id' in data:
+                del data['_id']
+
+            # Filter out keys with None values
+            updated_data = {key: value for key, value in data.items() if value is not None}
+
+            # Log the final update data for debugging
+            print(f"Updating wine with ID {id} using data: {updated_data}")
+
+            # Perform the update
+            result = wines_collection.update_one({"_id": ObjectId(id)}, {"$set": updated_data})
+
+            if result.modified_count:
+                return jsonify({"message": "Wine updated successfully"}), 200
+            else:
+                return jsonify({"error": "Wine not found or no changes made"}), 404
+        except Exception as e:
+        # Log the error for debugging
+            print(f"Error updating wine: {e}")
+            return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
 
     # Delete a wine
     @wines_bp.route('/wines/<id>', methods=['DELETE'])
