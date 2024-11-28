@@ -2,7 +2,9 @@ from flask import Blueprint, jsonify, request
 from pymongo.errors import PyMongoError
 from bson.objectid import ObjectId
 from .stock_manager import get_total_stock, update_stock_after_sale
-from datetime import datetime
+from datetime import datetime 
+import calendar
+
 
 sales_bp = Blueprint('sales', __name__)
 
@@ -90,8 +92,20 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
             # Get the start of the current month, the start of the previous month, and the end of the previous month
             now = datetime.utcnow()
             start_of_current_month = datetime(now.year, now.month, 1)
-            start_of_previous_month = (start_of_current_month - timedelta(days=1)).replace(day=1)
-            end_of_previous_month = start_of_current_month - timedelta(seconds=1)
+
+            # Calculate start and end of the previous month
+            previous_month = start_of_current_month.month - 1
+            previous_year = start_of_current_month.year if previous_month > 0 else start_of_current_month.year - 1
+            previous_month = previous_month if previous_month > 0 else 12
+
+            start_of_previous_month = datetime(previous_year, previous_month, 1)
+            end_of_previous_month = datetime(
+                previous_year,
+            previous_month,
+            calendar.monthrange(previous_year, previous_month)[1],
+            23, 59, 59
+            )
+
 
             # return sales of the current month
             current_month_sales_pipeline = [
