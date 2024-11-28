@@ -8,7 +8,18 @@ sales_bp = Blueprint('sales', __name__)
 
 def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
     
-    #Place purchase order (Expanding stock).
+    #Get customer's orders.
+    # @sales_bp.route('/sales/customer/<account_id>', methods=['GET'])
+    # def get_orders_by_customerId(account_id):
+        
+    #     # Query MongoDB with account id
+    #     orders = list(sales_collection.find(account_id))
+        
+            
+    #     return jsonify()
+        
+    
+    #Place customer's order.
     @sales_bp.route('/sales', methods=['POST'])
     def process_sales_cart():
         # Extract and validate JSON data
