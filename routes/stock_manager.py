@@ -263,37 +263,5 @@ def update_wine_stock(
         return {"success": True, "message": "Wine stock updated or added successfully."}
     else:
         return {"success": False, "message": "Operation failed, no changes were made."}
-
-# # Report route
-@sales_bp.route('/stock/report', methods=['GET'])
-def get_stock_report():
-
-    try:
-        # Fetch all wines from the database
-        wines = list(wines_collection.find({}, {"_id": 1, "name": 1, "sale_price": 1}))
-
-        # Prepare the report
-        stock_report = []
-        for wine in wines:
-            wine_id = str(wine["_id"])
-            wine_name = wine.get("name", "Unknown")
-            sale_price = wine.get("sale_price", 0.0)
-
-            # Get total stock and locations
-            total_stock = get_total_stock(warehouses_collection, wine_id)
-            locations = get_wine_locations_and_stock(warehouses_collection, wine_id)
-
-            # Add wine data to the report
-            stock_report.append({
-                "wine_id": wine_id,
-                "name": wine_name,
-                "sale_price": float(sale_price),
-                "total_stock": int(total_stock),
-                "locations": locations  # Each location includes aisle, shelf, and stock
-            })
-
-        return jsonify({"stock_report": stock_report}), 200
-
-    except Exception as e:
-        return jsonify({"error": f"Failed to generate stock report: {str(e)}"}), 500
-
+        
+    
