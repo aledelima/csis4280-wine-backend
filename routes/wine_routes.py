@@ -163,12 +163,65 @@ def init_wine_routes(wines_collection, warehouses_collection):
     # Update an existing wine
     @wines_bp.route('/wines/<id>', methods=['PATCH'])
     def update_wine(id):
-        data = request.json
-        updated_data = {key: value for key, value in data.items() if value is not None}
-        result = wines_collection.update_one({"_id": ObjectId(id)}, {"$set": updated_data})
-        if result.modified_count:
-            return jsonify({"message": "Wine updated successfully"})
-        return jsonify({"error": "Wine not found or no changes made"}), 404
+        try:
+            data = request.json
+            if not data:
+                return jsonify({"error": "No data provided"}), 400
+
+            # Verify wine exists before updating
+            existing_wine = wines_collection.find_one({"_id": ObjectId(id)})
+            if not existing_wine:
+                return jsonify({"error": "Wine not found"}), 404
+
+            updated_data = {key: data.get(key, existing_wine.get(key)) for key in existing_wine if key != "_id"}
+
+            # Perform the update
+            result = wines_collection.update_one(
+                {"_id": ObjectId(id)}, 
+                {"$set": updated_data}
+            )
+
+            if result.modified_count:
+                return jsonify({"message": "Wine updated successfully"}), 200
+            else:
+                return jsonify({"message": "No updates were performed, as the data matches the existing values"}), 200
+
+        except Exception as e:
+            print(f"Error updating wine: {e}")
+            return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+    
+    # def update_wine(id):
+    #     try:
+    #         # Parse the JSON body from the request
+    #         data = request.json
+    #         if not data:
+    #             return jsonify({"error": "No data provided"}), 400
+    
+    #         # Filter out keys with None values
+    #         updated_data = {key: value for key, value in data.items() if value is not None}
+    
+    #         if not updated_data:
+    #             return jsonify({"error": "No valid fields to update"}), 400
+    
+    #         # Perform the update in the database
+    #         result = wines_collection.update_one(
+    #             {"_id": ObjectId(id)},  # Filter: find the document by its ID
+    #             {"$set": updated_data}  # Update: only modify specified fields
+    #         )
+    
+    #         # Check the outcome of the update
+    #         if result.modified_count > 0:
+    #             return jsonify({"message": "Wine updated successfully"}), 200
+    #         elif result.matched_count > 0:
+    #             return jsonify({"message": "No changes were made"}), 200
+    #         else:
+    #             return jsonify({"error": "Wine not found"}), 404
+    
+    #     except Exception as e:
+    #         # Log the error for debugging
+    #         print(f"Error updating wine: {e}")
+    #         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+            
 
     # Delete a wine
     @wines_bp.route('/wines/<id>', methods=['DELETE'])
