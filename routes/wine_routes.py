@@ -161,34 +161,34 @@ def init_wine_routes(wines_collection, warehouses_collection):
         return jsonify(response), 201
 
     # Update an existing wine
-    # Update an existing wine
     @wines_bp.route('/wines/<id>', methods=['PATCH'])
     def update_wine(id):
         try:
-            # Parse the incoming JSON data
+         # Parse the incoming JSON data
             data = request.json
             if not data:
                 return jsonify({"error": "No data provided"}), 400
-        
-            # Remove `_id` if it exists, as MongoDB does not allow updates to `_id`
-            if '_id' in data:
-                del data['_id']
 
-            # Filter out keys with None values
-            updated_data = {key: value for key, value in data.items() if value is not None}
+        # Verify wine exists before updating
+            existing_wine = wines_collection.find_one({"_id": ObjectId(id)})
+            if not existing_wine:
+                return jsonify({"error": "Wine not found"}), 404
 
-            # Log the final update data for debugging
-            print(f"Updating wine with ID {id} using data: {updated_data}")
+        # Dynamically build the update data while preserving the original values
+            updated_data = {key: data.get(key, existing_wine.get(key)) for key in existing_wine if key != "_id"}
 
-            # Perform the update
-            result = wines_collection.update_one({"_id": ObjectId(id)}, {"$set": updated_data})
+        # Perform the update
+            result = wines_collection.update_one(
+                {"_id": ObjectId(id)}, 
+                {"$set": updated_data}
+            )
 
             if result.modified_count:
                 return jsonify({"message": "Wine updated successfully"}), 200
             else:
-                return jsonify({"error": "Wine not found or no changes made"}), 404
+                return jsonify({"message": "No updates were performed, as the data matches the existing values"}), 200
+
         except Exception as e:
-        # Log the error for debugging
             print(f"Error updating wine: {e}")
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
