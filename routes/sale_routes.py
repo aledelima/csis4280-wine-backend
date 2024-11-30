@@ -141,38 +141,48 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
     @sales_bp.route('/sales/report', methods=['GET'])
     def get_sales_report():
         """
-        Fetch sales details within a specified date range.
+        Fetch sales details within a specified date range and with optional filters.
         """
         try:
             # Parse start_date and end_date from query parameters
             start_date = request.args.get('start_date')
             end_date = request.args.get('end_date')
+            categories = request.args.getlist('categories')  # Parse list of categories
+            best_sellers = request.args.get('best_sellers', 'false').lower() == 'true'
 
-            # Validate dates
-            if not start_date or not end_date:
-                return jsonify({"error": "Start date and end date are required."}), 400
-
+          
             start_date = datetime.strptime(start_date, "%Y-%m-%d")
             end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
-            # Query sales within the date range
-            sales = sales_collection.find({
-                "sales_date": {"$gte": start_date, "$lte": end_date}
-            })
+            # Base query for the date range
+            query = {"sales_date": {"$gte": start_date, "$lte": end_date}}
 
+            # Add category filter if provided
+            if categories:
+                query["items.name"] = {"$in": categories}
+
+            # Fetch sales within the date range
+            sales_cursor = sales_collection.find(query)
+
+            # Process and return the sales data
             sales_data = []
-            for sale in sales:
+            for sale in sales_cursor:
+                items = sale["items"]
+                if best_sellers:
+                    # Sort items by quantity sold if best sellers filter is applied
+                    items.sort(key=lambda x: x["quantity"], reverse=True)
                 sales_data.append({
                     "_id": str(sale["_id"]),
-                    "account_id": str(sale["account_id"]),
                     "total_price": sale["total_price"],
                     "sales_date": sale["sales_date"].strftime("%Y-%m-%d"),
-                    "items": [{
-                        "wine_id": str(item["wine_id"]),
-                        "name": item["name"],
-                        "quantity": item["quantity"],
-                        "item_total": item["item_total"]
-                    } for item in sale["items"]]
+                    "items": [
+                        {
+                            "wine_id": str(item["wine_id"]),
+                            "name": item["name"],
+                            "quantity": item["quantity"],
+                            "item_total": item["item_total"]
+                        } for item in items
+                    ]
                 })
 
             return jsonify({
@@ -181,9 +191,30 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
                 "sales": sales_data
             }), 200
 
-        except PyMongoError as e:
-            return jsonify({"error": f"Database error: {str(e)}"}), 500
         except Exception as e:
-            return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+            return jsonify({"error": f"Failed to fetch sales report: {str(e)}"}), 500
+    
+    @sales_bp.route('/sales/wines', methods=['GET'])
+    def get_sold_wines():
+        """
+        Fetch list of sold wines with name and quantity sold.
+        """
+        try:
+            sales = sales_collection.aggregate([
+                {"$unwind": "$items"},  # Explode items array
+                {
+                    "$group": {
+                        "_id": "$items.wine_id",
+                        "wine_name": {"$first": "$items.name"},
+                        "quantity_sold": {"$sum": "$items.quantity"}
+                    }
+                },
+                {"$sort": {"wine_name": 1}}  # Sort alphabetically
+            ])
+
+            return jsonify(list(sales)), 200
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to fetch sold wines: {str(e)}"}), 500
 
 
