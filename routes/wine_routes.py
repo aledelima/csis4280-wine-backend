@@ -2,10 +2,11 @@ from flask import Blueprint, jsonify, request
 from bson.objectid import ObjectId
 from pymongo.errors import PyMongoError
 from .stock_manager import get_total_stock
+from datetime import datetime
 
 wines_bp = Blueprint('wines', __name__)
 
-def init_wine_routes(wines_collection, warehouses_collection):
+def init_wine_routes(wines_collection, warehouses_collection, purchases_collection):
     
     @wines_bp.route('/wines', methods=['GET'])
     def get_wines():
@@ -294,3 +295,65 @@ def init_wine_routes(wines_collection, warehouses_collection):
         except Exception as e:
             return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
             
+    @wines_bp.route('/wines/<id>/replenish', methods=['POST'])
+    def replenish_stock(id):
+        try:
+            # Parse the request data
+            data = request.json
+            cost_price = data.get("cost_price")
+            stock_quantity = data.get("stock_quantity")
+
+            # Validate input data
+            if not all([cost_price, stock_quantity]):
+                return jsonify({"error": "Missing required fields"}), 400
+
+            try:
+                stock_quantity = int(stock_quantity)
+                cost_price = float(cost_price)
+            except ValueError:
+                return jsonify({"error": "Invalid data format for cost_price or stock_quantity"}), 400
+
+            # Locate the wine in the warehouses collection
+            warehouse_entry = warehouses_collection.find_one(
+                {"aisles.shelves.wines.wine_id": id}
+            )
+            if not warehouse_entry:
+                return jsonify({"error": "Wine not found in warehouse"}), 404
+
+            # Update the stock for the specific wine in the nested structure
+            updated = warehouses_collection.update_one(
+                {
+                    "aisles.shelves.wines.wine_id": id  # Match the wine in the nested structure
+                },
+                {
+                    "$inc": {"aisles.$[aisle].shelves.$[shelf].wines.$[wine].stock": stock_quantity}
+                },
+                array_filters=[
+                    {"aisle.aisle": {"$exists": True}},  # Match any aisle
+                    {"shelf.shelf": {"$exists": True}},  # Match any shelf
+                    {"wine.wine_id": id}                 # Match the specific wine
+                ]
+            )
+
+            if updated.modified_count == 0:
+                return jsonify({"error": "Failed to update stock"}), 500
+
+            # Record the purchase in the purchases collection
+            purchase_document = {
+                "wine_id": id,
+                "cost_price": cost_price,
+                "amount": stock_quantity,
+                "date": datetime.utcnow()
+            }
+            result = purchases_collection.insert_one(purchase_document)
+
+            return jsonify({
+                "message": "Stock replenished and purchase recorded successfully",
+                "new_stock_quantity": stock_quantity,
+                "purchase_id": str(result.inserted_id)
+            }), 200
+
+        except PyMongoError as e:
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
+        except Exception as e:
+            return jsonify({"error": f"Unexpected error: {str(e)}"}), 500

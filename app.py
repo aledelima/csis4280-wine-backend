@@ -27,7 +27,7 @@ warehouses_collection = db['warehouses'] # collection for warehouses
 sales_collection = db['sales'] # collection for sales
 
 # Initialize route endpoints with their collection instances
-init_wine_routes(wines_collection, warehouses_collection)
+init_wine_routes(wines_collection, warehouses_collection, purchases_collection)
 init_purchase_routes(purchases_collection)
 init_sale_routes(sales_collection, wines_collection, warehouses_collection)
 init_account_routes(accounts_collection)
