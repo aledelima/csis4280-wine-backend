@@ -175,8 +175,14 @@ def init_wine_routes(wines_collection, warehouses_collection):
     def delete_wine(id):
         result = wines_collection.delete_one({"_id": ObjectId(id)})
         if result.deleted_count:
-            return jsonify({"message": "Wine deleted successfully"})
-        return jsonify({"error": "Wine not found"}), 404
+            return jsonify({
+                "message": "Wine deleted successfully",
+                "response_status": True
+            }), 200
+        return jsonify({
+            "message": "Wine not found",
+            "response_status": False
+        }), 404
 
     # Search wines by partial name with pagination
     @wines_bp.route('/wines/search', methods=['GET'])
