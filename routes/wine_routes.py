@@ -164,20 +164,19 @@ def init_wine_routes(wines_collection, warehouses_collection):
     @wines_bp.route('/wines/<id>', methods=['PATCH'])
     def update_wine(id):
         try:
-         # Parse the incoming JSON data
+            object_id = ObjectId(id)
             data = request.json
             if not data:
                 return jsonify({"error": "No data provided"}), 400
 
-        # Verify wine exists before updating
+            # Verify wine exists before updating
             existing_wine = wines_collection.find_one({"_id": ObjectId(id)})
             if not existing_wine:
                 return jsonify({"error": "Wine not found"}), 404
 
-        # Dynamically build the update data while preserving the original values
             updated_data = {key: data.get(key, existing_wine.get(key)) for key in existing_wine if key != "_id"}
 
-        # Perform the update
+            # Perform the update
             result = wines_collection.update_one(
                 {"_id": ObjectId(id)}, 
                 {"$set": updated_data}
@@ -310,4 +309,14 @@ def init_wine_routes(wines_collection, warehouses_collection):
             return jsonify({"error": f"Database error: {str(e)}"}), 500
         except Exception as e:
             return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+    
+    #get wine stock by id
+    @wines_bp.route('/wines/stock/<wine_id>', methods=['GET'])
+    def get_wine_stock(wine_id):
+   
+        stock = get_total_stock(warehouses_collection, wine_id)
+        if stock != "0":  # If stock is found
+            return jsonify({"wine_id": wine_id, "total_stock": stock}), 200
+        return jsonify({"error": "Wine not found"}), 404
+
             
