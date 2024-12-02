@@ -47,7 +47,6 @@ def init_warehouse_routes(warehouses_collection):
                 "message": "Error adding stock",
                 "response_status": False
             }), 500
-            
 
     # Create initial list of stock
     @warehouses_bp.route('/warehouse/all', methods=['POST'])

@@ -9,24 +9,52 @@ sales_bp = Blueprint('sales', __name__)
 
 def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
     
-    #Get customer's orders.
-    # @sales_bp.route('/sales/customer/<account_id>', methods=['GET'])
-    # def get_orders_by_customerId(account_id):
-        
-    #     # Query MongoDB with account id
-    #     orders = list(sales_collection.find(account_id))
-        
+    # Get customer's orders by account id
+    @sales_bp.route('/sales/customer/<account_id>', methods=['GET'])
+    def get_orders_by_customer_id(account_id):
+        try:
+            # Query MongoDB with account id
+            orders = list(sales_collection.find({"account_id": ObjectId(account_id)}))
+
+            # Convert ObjectId to string for JSON serialization
+            for order in orders:
+                order['_id'] = str(order['_id'])
+                order['account_id'] = str(order['account_id'])
             
-    #     return jsonify()
-        
+            response = {
+                "invoices": orders
+            }
+            return jsonify(response), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+            
     
+    # Get customer's orders not dispatched.
+    @sales_bp.route('/sales/customer/dispatch/<dispatch_status>', methods=['GET'])
+    def get_orders_not_dispatched(dispatch_status):
+        try:
+            # Query MongoDB with account id
+            orders = list(sales_collection.find({"dispatch_status": str(dispatch_status)}))
+
+            # Convert ObjectId to string for JSON serialization
+            for order in orders:
+                order['_id'] = str(order['_id'])
+                order['account_id'] = str(order['account_id'])
+                
+            response = {
+                "invoices": orders
+            }
+            return jsonify(response), 200
+        except Exception as e:
+            return jsonify({"error": str(e)}), 400
+        
     #Place customer's order.
     @sales_bp.route('/sales', methods=['POST'])
     def process_sales_cart():
         # Extract and validate JSON data
         data = request.get_json()
     
-        account_id = data.get("account_id")
+        account = data.get("account")
     
         items = data.get("items", [])
         
@@ -71,24 +99,26 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
                 })
                 
         response = {
-            "invoice": None,
+            "invoices": [],
             "sale_refused": insufficient_stock_items
         }
-    
+        
         # Issue new invoice
         if processed_items:
             new_invoice = {
-                "account_id": ObjectId(account_id),
+                "account_id": ObjectId(account["account_id"]),
                 "items": processed_items,
                 "total_price": round(total_price, 2),
-                "sales_date": str(datetime.utcnow()),
-                "shipping_address": shipping_address
+                "sales_date": datetime.utcnow(),   #"sales_date": str(datetime.utcnow()),
+                "shipping_address": shipping_address,
+                "dispatch_status": 0
             }
             result = sales_collection.insert_one(new_invoice)
             new_invoice["_id"] = str(result.inserted_id)
             new_invoice["account_id"] = str(new_invoice["account_id"])
-    
-            response["invoice"] = new_invoice
+        
+            # Append the new invoice to the "invoices" list
+            response["invoices"].append(new_invoice)
 
         return jsonify(response), 200
         

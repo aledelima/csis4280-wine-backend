@@ -29,6 +29,42 @@ def get_total_stock(warehouses_collection, wine_id: str) -> str:
     # Return the total stock if found, else return 0
     return result[0]["total_stock"] if result else "0"
     
+def get_wines_below_min_stock(warehouses_collection, min_stock: int) -> list:
+    """
+    Retrieve wine IDs and their total stock for wines with stock below the specified minimum.
+    :param warehouses_collection: The MongoDB collection for warehouses.
+    :param min_stock: The minimum stock threshold.
+    :return: A list of dictionaries with wine ID and total stock for wines below the minimum stock.
+    """
+    pipeline = [
+        {"$unwind": "$aisles"},  # Unwind aisles array
+        {"$unwind": "$aisles.shelves"},  # Unwind shelves array
+        {"$unwind": "$aisles.shelves.wines"},  # Unwind wines array
+        {
+            "$group": {  # Group by wine_id and sum stock
+                "_id": "$aisles.shelves.wines.wine_id",
+                "total_stock": {"$sum": "$aisles.shelves.wines.stock"}
+            }
+        },
+        {
+            "$match": {  # Filter for total stock below the minimum threshold
+                "total_stock": {"$lt": min_stock}
+            }
+        },
+        {
+            "$project": {  # Format the output
+                "wine_id": "$_id",
+                "total_stock": 1,
+                "_id": 0
+            }
+        }
+    ]
+
+    # Execute the aggregation pipeline
+    result = list(warehouses_collection.aggregate(pipeline))
+
+    return result
+
 #function to return wine's locations and stock in each location
 def get_wine_locations_and_stock(warehouses_collection, wine_id: str) -> list:
     """

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from bson.objectid import ObjectId
 from pymongo.errors import PyMongoError
-from .stock_manager import get_total_stock
+from .stock_manager import get_total_stock, get_wine_locations_and_stock, get_wines_below_min_stock
 
 wines_bp = Blueprint('wines', __name__)
 
@@ -90,6 +90,7 @@ def init_wine_routes(wines_collection, warehouses_collection):
         for wine in wines:
             wine['_id'] = str(wine['_id'])
             wine['stock'] = get_total_stock(warehouses_collection, wine['_id'])
+            wine['stock_location'] = get_wine_locations_and_stock(warehouses_collection, wine['_id'])
 
         # Get the total count of wines matching the filter
         total_count = wines_collection.count_documents(filter_criteria)
@@ -103,16 +104,50 @@ def init_wine_routes(wines_collection, warehouses_collection):
             "wines": wines
         }
         return jsonify(response)
+    
+    # get wines with low stock level    
+    @wines_bp.route('/wines/low', methods=['GET'])
+    def get_wines_low_stock():
+        """
+        Endpoint to get wines with stock below a certain level.
+        """
+        # Extract and validate the `min_stock` parameter
+        min_stock = request.args.get('min_stock')
+        if min_stock is None or not min_stock.isdigit():
+            return jsonify({"error": "min_stock parameter is required and must be an integer"}), 400
+    
+        min_stock = int(min_stock)
+    
+        # Get wines with stock below the specified minimum
+        low_stock_wines = get_wines_below_min_stock(warehouses_collection, min_stock)
+        
+        wines = []
+        for wine in low_stock_wines:
+            wine_data = get_wine(wine["wine_id"])  # Ensure this returns a serializable object
+            if isinstance(wine_data, dict):  # Verify wine_data is serializable
+                wines.append(wine_data)
+            else:
+                return jsonify({"error": f"Unexpected data format for wine_id {wine['wine_id']}"}), 500
+    
+        response = {
+            "wines": wines
+        }
+        return jsonify(response)
 
     # Get a single wine by ID
     @wines_bp.route('/wines/<id>', methods=['GET'])
     def get_wine(id):
+        """
+        Retrieve wine details by ID.
+        """
         wine = wines_collection.find_one({"_id": ObjectId(id)})
         if wine:
-            wine['_id'] = str(wine['_id'])
-            wine['stock'] = get_total_stock(warehouses_collection, wine['_id']) #load stock from warehouse
-            return jsonify(wine)
-        return jsonify({"error": "Wine not found"}), 404
+            wine['_id'] = str(wine['_id'])  # Convert ObjectId to string
+            wine['stock'] = get_total_stock(warehouses_collection, wine['_id'])  # Load stock from warehouse
+            wine['stock_location'] = get_wine_locations_and_stock(warehouses_collection, wine['_id'])
+            return wine  # Return as a dictionary
+        
+        return {"error": "Wine not found"}, 404  # Return error as a dictionary
 
     # Create a new wine.
     @wines_bp.route('/wines', methods=['POST'])
@@ -167,61 +202,38 @@ def init_wine_routes(wines_collection, warehouses_collection):
             data = request.json
             if not data:
                 return jsonify({"error": "No data provided"}), 400
-
-            # Verify wine exists before updating
+    
+            # Verify the wine exists before updating
             existing_wine = wines_collection.find_one({"_id": ObjectId(id)})
             if not existing_wine:
                 return jsonify({"error": "Wine not found"}), 404
-
-            updated_data = {key: data.get(key, existing_wine.get(key)) for key in existing_wine if key != "_id"}
-
+    
+            # Prepare the updated data, excluding fields that shouldn't be updated
+            updated_data = {key: value for key, value in data.items() if key != "_id"}
+    
+            if not updated_data:
+                return jsonify({"error": "No valid fields to update"}), 400
+    
             # Perform the update
             result = wines_collection.update_one(
-                {"_id": ObjectId(id)}, 
+                {"_id": ObjectId(id)},
                 {"$set": updated_data}
             )
-
-            if result.modified_count:
-                return jsonify({"message": "Wine updated successfully"}), 200
-            else:
-                return jsonify({"message": "No updates were performed, as the data matches the existing values"}), 200
-
+    
+            if result.modified_count == 0:
+                return jsonify({"message": "No changes were made"}), 200
+    
+            # Prepare and return a success response
+            response = {
+                "response_id": str(existing_wine["_id"]),
+                "message": "Wine updated successfully",
+                "response_status": True
+            }
+            return jsonify(response), 200
+    
         except Exception as e:
             print(f"Error updating wine: {e}")
             return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-    
-    # def update_wine(id):
-    #     try:
-    #         # Parse the JSON body from the request
-    #         data = request.json
-    #         if not data:
-    #             return jsonify({"error": "No data provided"}), 400
-    
-    #         # Filter out keys with None values
-    #         updated_data = {key: value for key, value in data.items() if value is not None}
-    
-    #         if not updated_data:
-    #             return jsonify({"error": "No valid fields to update"}), 400
-    
-    #         # Perform the update in the database
-    #         result = wines_collection.update_one(
-    #             {"_id": ObjectId(id)},  # Filter: find the document by its ID
-    #             {"$set": updated_data}  # Update: only modify specified fields
-    #         )
-    
-    #         # Check the outcome of the update
-    #         if result.modified_count > 0:
-    #             return jsonify({"message": "Wine updated successfully"}), 200
-    #         elif result.matched_count > 0:
-    #             return jsonify({"message": "No changes were made"}), 200
-    #         else:
-    #             return jsonify({"error": "Wine not found"}), 404
-    
-    #     except Exception as e:
-    #         # Log the error for debugging
-    #         print(f"Error updating wine: {e}")
-    #         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-            
 
     # Delete a wine
     @wines_bp.route('/wines/<id>', methods=['DELETE'])

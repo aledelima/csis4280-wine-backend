@@ -8,7 +8,7 @@ from routes.purchase_routes import purchases_bp, init_purchase_routes
 from routes.sale_routes import sales_bp, init_sale_routes
 from routes.account_routes import accounts_bp, init_account_routes
 from routes.warehouse_routes import warehouses_bp, init_warehouse_routes
-
+from routes.financial_routes import financial_bp, init_financial_routes
 #import controllers
 from routes.stock_manager import stock_manager_bp
 
@@ -32,6 +32,7 @@ init_purchase_routes(purchases_collection)
 init_sale_routes(sales_collection, wines_collection, warehouses_collection)
 init_account_routes(accounts_collection)
 init_warehouse_routes(warehouses_collection)
+init_financial_routes(purchases_collection, sales_collection)
 
 app.register_blueprint(wines_bp, url_prefix=app.config["BASE_URL"])
 app.register_blueprint(purchases_bp, url_prefix=app.config["BASE_URL"])
@@ -39,6 +40,7 @@ app.register_blueprint(sales_bp, url_prefix=app.config["BASE_URL"])
 app.register_blueprint(accounts_bp, url_prefix=app.config["BASE_URL"])
 app.register_blueprint(warehouses_bp, url_prefix=app.config["BASE_URL"])
 app.register_blueprint(stock_manager_bp, url_prefix=app.config["BASE_URL"])
+app.register_blueprint(financial_bp, url_prefix=app.config["BASE_URL"])
 
 # Basic route to verify app is running
 @app.route('/')
