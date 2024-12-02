@@ -38,7 +38,12 @@ def init_financial_routes(purchases_collection, sales_collection):
                 },
                 {
                     "$group": {
-                        "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$date"}},
+                        "_id": {
+                            "$dateToString": {
+                                "format": "%Y-%m-%d %H:%M:%S", 
+                                "date": "$date"
+                            }
+                        },
                         "total_cost": {"$sum": "$cumulative_cost"}
                     }
                 },
@@ -61,7 +66,12 @@ def init_financial_routes(purchases_collection, sales_collection):
                 },
                 {
                     "$group": {
-                        "_id": {"$dateToString": {"format": "%Y-%m-%d", "date": "$sales_date"}},
+                        "_id": {
+                            "$dateToString": {
+                                "format": "%Y-%m-%d %H:%M:%S", 
+                                "date": "$sales_date"
+                            }
+                        },
                         "total_sales": {"$sum": "$total_price"}
                     }
                 },

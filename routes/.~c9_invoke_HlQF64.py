@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from pymongo.errors import PyMongoError
 from bson.objectid import ObjectId
 from datetime import datetime
+import pytz
 
 purchases_bp = Blueprint('purchases', __name__)
 
@@ -18,7 +19,7 @@ def init_purchase_routes(purchases_collection):
                 "wine_id": data.get("wine_id"),
                 "cost_price": data.get("cost_price"),
                 "amount": data.get("amount"),
-                "date": datetime.utcnow()
+                "date": datetime.now(pst)
             }
             try:
                 result = purchases_collection.insert_one(new_order)
@@ -59,7 +60,7 @@ def init_purchase_routes(purchases_collection):
                     "wine_id": data.get("wine_id"),
                     "cost_price": data.get("cost_price"),
                     "amount": data.get("amount"),
-                    "date": datetime.utcnow()  # Server timestamp
+                    "date": datetime.now(pst)  # Server timestamp
                 }
                 order_list.append(new_order)
                 
@@ -82,3 +83,51 @@ def init_purchase_routes(purchases_collection):
             "response_status": True
         }
         return jsonify(response), 201
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

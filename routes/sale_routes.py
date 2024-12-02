@@ -34,7 +34,7 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
     def get_orders_not_dispatched(dispatch_status):
         try:
             # Query MongoDB with account id
-            orders = list(sales_collection.find({"dispatch_status": str(dispatch_status)}))
+            orders = list(sales_collection.find({"dispatch_status": int(dispatch_status)}))
 
             # Convert ObjectId to string for JSON serialization
             for order in orders:
@@ -105,11 +105,12 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
         
         # Issue new invoice
         if processed_items:
+            
             new_invoice = {
                 "account_id": ObjectId(account["account_id"]),
                 "items": processed_items,
                 "total_price": round(total_price, 2),
-                "sales_date": datetime.utcnow(),   #"sales_date": str(datetime.utcnow()),
+                "sales_date": datetime.utcnow(),
                 "shipping_address": shipping_address,
                 "dispatch_status": 0
             }
@@ -119,7 +120,7 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
         
             # Append the new invoice to the "invoices" list
             response["invoices"].append(new_invoice)
-
+        
         return jsonify(response), 200
         
     # New route: Monthly sales comparison

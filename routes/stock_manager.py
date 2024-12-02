@@ -216,48 +216,49 @@ def update_wine_stock(
     shelf: str,
     wine_id: str,
     stock_to_add: int) -> dict:
-    """
-    Add or update the stock of a wine at a specified location (warehouse, aisle, shelf).
-    If the location doesn't exist, create it and set the wine with the given stock.
-    :param warehouses_collection: The MongoDB collection for warehouses.
-    :param warehouse_id: The ID of the warehouse.
-    :param aisle: The aisle ID where the wine should be added or updated.
-    :param shelf: The shelf ID where the wine should be added or updated.
-    :param wine_id: The ID of the wine to add or update.
-    :param stock_to_add: The stock to add to the wine.
-    :return: A dictionary indicating success or failure of the operation.
-    """
-    # Step 1: Try to update the stock if the wine_id already exists at the location
-    result = warehouses_collection.update_one(
-        {
-            "_id": warehouse_id,  # Match the warehouse
-            "aisles.aisle": aisle,  # Match the aisle
-            "aisles.shelves.shelf": shelf,  # Match the shelf
-            "aisles.shelves.wines.wine_id": wine_id  # Match the wine
-        },
-        {
-            "$inc": {  # Increment the stock by stock_to_add
-                "aisles.$[aisle].shelves.$[shelf].wines.$[wine].stock": stock_to_add
-            }
-        },
-        array_filters=[
-            {"aisle.aisle": aisle},  # Array filter for the aisle
-            {"shelf.shelf": shelf},  # Array filter for the shelf
-            {"wine.wine_id": wine_id}  # Array filter for the wine
-        ]
-    )
-
-    # Step 2: If the wine_id doesn't exist, check if the location exists
-    if result.matched_count == 0:
-        # Try to add the wine to an existing location
+        """
+        Add or update the stock of a wine at a specified location (warehouse, aisle, shelf).
+        If the shelf doesn't exist, create it under the existing aisle.
+        :param warehouses_collection: The MongoDB collection for warehouses.
+        :param warehouse_id: The ID of the warehouse.
+        :param aisle: The aisle ID where the wine should be added or updated.
+        :param shelf: The shelf ID where the wine should be added or updated.
+        :param wine_id: The ID of the wine to add or update.
+        :param stock_to_add: The stock to add to the wine.
+        :return: A dictionary indicating success or failure of the operation.
+        """
+        # Step 1: Try to update the stock if the wine_id already exists
         result = warehouses_collection.update_one(
             {
-                "_id": warehouse_id,  # Match the warehouse
-                "aisles.aisle": aisle,  # Match the aisle
-                "aisles.shelves.shelf": shelf  # Match the shelf
+                "_id": warehouse_id,
+                "aisles.aisle": aisle,
+                "aisles.shelves.shelf": shelf,
+                "aisles.shelves.wines.wine_id": wine_id
             },
             {
-                "$addToSet": {  # Add the new wine
+                "$inc": {
+                    "aisles.$[aisle].shelves.$[shelf].wines.$[wine].stock": stock_to_add
+                }
+            },
+            array_filters=[
+                {"aisle.aisle": aisle},
+                {"shelf.shelf": shelf},
+                {"wine.wine_id": wine_id}
+            ]
+        )
+        
+        if result.matched_count > 0:
+            return {"success": True, "message": "Wine stock updated successfully."}
+    
+        # Step 2: Add the wine if the location exists
+        result = warehouses_collection.update_one(
+            {
+                "_id": warehouse_id,
+                "aisles.aisle": aisle,
+                "aisles.shelves.shelf": shelf
+            },
+            {
+                "$addToSet": {
                     "aisles.$[aisle].shelves.$[shelf].wines": {
                         "wine_id": wine_id,
                         "stock": stock_to_add
@@ -265,72 +266,148 @@ def update_wine_stock(
                 }
             },
             array_filters=[
-                {"aisle.aisle": aisle},  # Array filter for the aisle
-                {"shelf.shelf": shelf}  # Array filter for the shelf
+                {"aisle.aisle": aisle},
+                {"shelf.shelf": shelf}
             ]
         )
-
-        # Step 3: If the location itself doesn't exist, create it
-        if result.matched_count == 0:
-            result = warehouses_collection.update_one(
-                {"_id": warehouse_id},  # Match the warehouse
-                {
-                    "$addToSet": {  # Add a new aisle and shelf with the wine
-                        "aisles": {
-                            "aisle": aisle,
-                            "shelves": [
-                                {
-                                    "shelf": shelf,
-                                    "wines": [
-                                        {"wine_id": wine_id, "stock": stock_to_add}
-                                    ]
-                                }
-                            ]
-                        }
+    
+        if result.matched_count > 0:
+            return {"success": True, "message": "Wine added to existing shelf."}
+    
+        # Step 3: Add the shelf if it doesn't exist
+        result = warehouses_collection.update_one(
+            {
+                "_id": warehouse_id,
+                "aisles.aisle": aisle
+            },
+            {
+                "$addToSet": {
+                    "aisles.$.shelves": {
+                        "shelf": shelf,
+                        "wines": [
+                            {"wine_id": wine_id, "stock": stock_to_add}
+                        ]
                     }
                 }
-            )
-
-            if result.matched_count == 0:
-                return {"success": False, "message": "Warehouse not found."}
-
-    # Step 4: Return success response
-    if result.modified_count > 0:
-        return {"success": True, "message": "Wine stock updated or added successfully."}
-    else:
-        return {"success": False, "message": "Operation failed, no changes were made."}
-        
+            }
+        )
     
-    # # Report route
-# @sales_bp.route('/stock/report', methods=['GET'])
-# def get_stock_report():
-#
-#     try:
-#         # Fetch all wines from the database
-#         wines = list(wines_collection.find({}, {"_id": 1, "name": 1, "sale_price": 1}))
-#
-#         # Prepare the report
-#         stock_report = []
-#         for wine in wines:
-#             wine_id = str(wine["_id"])
-#             wine_name = wine.get("name", "Unknown")
-#             sale_price = wine.get("sale_price", 0.0)
-#
-#             # Get total stock and locations
-#             total_stock = get_total_stock(warehouses_collection, wine_id)
-#             locations = get_wine_locations_and_stock(warehouses_collection, wine_id)
-#
-#             # Add wine data to the report
-#             stock_report.append({
-#                 "wine_id": wine_id,
-#                 "name": wine_name,
-#                 "sale_price": float(sale_price),
-#                 "total_stock": int(total_stock),
-#                 "locations": locations  # Each location includes aisle, shelf, and stock
-#             })
-#
-#         return jsonify({"stock_report": stock_report}), 200
-#
-#     except Exception as e:
-#         return jsonify({"error": f"Failed to generate stock report: {str(e)}"}), 500
-#
+        if result.matched_count > 0:
+            return {"success": True, "message": "Shelf created and wine added."}
+    
+        # Step 4: Add the aisle if it doesn't exist
+        result = warehouses_collection.update_one(
+            {"_id": warehouse_id},
+            {
+                "$addToSet": {
+                    "aisles": {
+                        "aisle": aisle,
+                        "shelves": [
+                            {
+                                "shelf": shelf,
+                                "wines": [
+                                    {"wine_id": wine_id, "stock": stock_to_add}
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+    
+        if result.modified_count > 0:
+            return {"success": True, "message": "Aisle created and wine added."}
+    
+        return {"success": False, "message": "Warehouse not found or operation failed."}
+
+
+# def update_wine_stock(
+#     warehouses_collection,
+#     warehouse_id: str,
+#     aisle: str,
+#     shelf: str,
+#     wine_id: str,
+#     stock_to_add: int) -> dict:
+#     """
+#     Add or update the stock of a wine at a specified location (warehouse, aisle, shelf).
+#     If the location doesn't exist, create it and set the wine with the given stock.
+#     :param warehouses_collection: The MongoDB collection for warehouses.
+#     :param warehouse_id: The ID of the warehouse.
+#     :param aisle: The aisle ID where the wine should be added or updated.
+#     :param shelf: The shelf ID where the wine should be added or updated.
+#     :param wine_id: The ID of the wine to add or update.
+#     :param stock_to_add: The stock to add to the wine.
+#     :return: A dictionary indicating success or failure of the operation.
+#     """
+#     # Step 1: Try to update the stock if the wine_id already exists at the location
+#     result = warehouses_collection.update_one(
+#         {
+#             "_id": warehouse_id,  # Match the warehouse
+#             "aisles.aisle": aisle,  # Match the aisle
+#             "aisles.shelves.shelf": shelf,  # Match the shelf
+#             "aisles.shelves.wines.wine_id": wine_id  # Match the wine
+#         },
+#         {
+#             "$inc": {  # Increment the stock by stock_to_add
+#                 "aisles.$[aisle].shelves.$[shelf].wines.$[wine].stock": stock_to_add
+#             }
+#         },
+#         array_filters=[
+#             {"aisle.aisle": aisle},  # Array filter for the aisle
+#             {"shelf.shelf": shelf},  # Array filter for the shelf
+#             {"wine.wine_id": wine_id}  # Array filter for the wine
+#         ]
+#     )
+
+#     # Step 2: If the wine_id doesn't exist, check if the location exists
+#     if result.matched_count == 0:
+#         # Try to add the wine to an existing location
+#         result = warehouses_collection.update_one(
+#             {
+#                 "_id": warehouse_id,  # Match the warehouse
+#                 "aisles.aisle": aisle,  # Match the aisle
+#                 "aisles.shelves.shelf": shelf  # Match the shelf
+#             },
+#             {
+#                 "$addToSet": {  # Add the new wine
+#                     "aisles.$[aisle].shelves.$[shelf].wines": {
+#                         "wine_id": wine_id,
+#                         "stock": stock_to_add
+#                     }
+#                 }
+#             },
+#             array_filters=[
+#                 {"aisle.aisle": aisle},  # Array filter for the aisle
+#                 {"shelf.shelf": shelf}  # Array filter for the shelf
+#             ]
+#         )
+
+#         # Step 3: If the location itself doesn't exist, create it
+#         if result.matched_count == 0:
+#             result = warehouses_collection.update_one(
+#                 {"_id": warehouse_id},  # Match the warehouse
+#                 {
+#                     "$addToSet": {  # Add a new aisle and shelf with the wine
+#                         "aisles": {
+#                             "aisle": aisle,
+#                             "shelves": [
+#                                 {
+#                                     "shelf": shelf,
+#                                     "wines": [
+#                                         {"wine_id": wine_id, "stock": stock_to_add}
+#                                     ]
+#                                 }
+#                             ]
+#                         }
+#                     }
+#                 }
+#             )
+
+#             if result.matched_count == 0:
+#                 return {"success": False, "message": "Warehouse not found."}
+
+#     # Step 4: Return success response
+#     if result.modified_count > 0:
+#         return {"success": True, "message": "Wine stock updated or added successfully."}
+#     else:
+#         return {"success": False, "message": "Operation failed, no changes were made."}
