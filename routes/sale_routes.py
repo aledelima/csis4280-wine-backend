@@ -204,3 +204,47 @@ def init_sale_routes(sales_collection, wines_collection, warehouses_collection):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     
+    # Create initial list of stock
+    @sales_bp.route('/sales/all', methods=['POST'])
+    def create_initial_sales():
+        data_list = request.json
+        
+        if not isinstance(data_list, list):
+            return jsonify({
+                "message": "Input data must be a list",
+                "response_status": False
+            }), 400
+
+        def create_sales_list():
+            sales_list = []
+            for data in data_list:
+                new_sales = {
+                    "account_id": data.get("account_id"),
+                    "items": data.get("items"),
+                    "total_price": data.get("total_price"),
+                    # "sales_date": datetime.strptime(data.get("sales_date"), "%Y-%m-%d %H:%M:%S"),
+                    "sales_date": datetime.fromisoformat(data.get("sales_date")),
+                    "shipping_address": data.get("shipping_address"),
+                    "dispatch_status": data.get("dispatch_status")
+                }
+                sales_list.append(new_sales)
+            
+            try:
+                result = sales_collection.insert_many(sales_list)
+                return sales_list
+            except Exception as e:
+                return None, str(e)
+                
+        sales_order_list = create_sales_list()
+        if not sales_order_list:
+            return jsonify({
+                "message": "Error creating purchase order list",
+                "response_status": False
+            }), 500
+        
+        # Prepare response order list
+        response = {
+            "message": "Sales order list registered successfully",
+            "response_status": True
+        }
+        return jsonify(response), 201
