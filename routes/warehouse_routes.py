@@ -16,7 +16,7 @@ def init_warehouse_routes(warehouses_collection):
         location_id = get_warehouse_id(warehouses_collection, location)
         aisles = data.get("aisles")
     
-        first_aisle = aisles[0]  # Access the first element in the list
+        first_aisle = aisles[0]
         aisle = first_aisle.get("aisle")
         shelves = first_aisle.get("shelves")
         
